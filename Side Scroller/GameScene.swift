@@ -9,20 +9,55 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var player: SKSpriteNode!
+    var scoreLabel: SKLabelNode!
+    var lastScoreUpdateTime: TimeInterval = 0.0
+    var isPlaying: Bool = false
+
+    
+    var score = 0 {
+        didSet {
+            scoreLabel.text = "SCORE: \(score)"
+        }
+    }
     
     override func didMove(to view: SKView) {
         createPlayer()
         createBackground()
         createGround()
-        startRocks()
+        createScore()
+        
+        physicsWorld.contactDelegate = self
+        physicsWorld.gravity = CGVector(dx: 0.0, dy: -5.0)
         }
  
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if (isPlaying == false) {
+            startRocks()
+            isPlaying = true
+            player.physicsBody?.isDynamic = true
+        } else {
+            player.physicsBody?.velocity = CGVector(dx: 6.5, dy: 6.5)
+            player.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 130))
+        }
         
+
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        player.removeFromParent()
+        speed = 0
+        isPlaying = false
+        restartGame()
+    }
+    
+    override func update(_ currentTime: TimeInterval) {
+        if (isPlaying == true) {
+            updateScore(withCurrentTime: currentTime)
+        }
     }
     
     func createPlayer() {
@@ -33,6 +68,11 @@ class GameScene: SKScene {
         player.position = CGPoint(x: frame.width/6, y: frame.height*0.75)
         
         addChild(player)
+        
+        player.physicsBody = SKPhysicsBody(texture: playerTexture, size: playerTexture.size())
+        player.physicsBody!.contactTestBitMask = player.physicsBody!.collisionBitMask
+        player.physicsBody?.isDynamic = false
+        player.physicsBody?.collisionBitMask = 0
         
         //Setup the animation of the sprite so it looks like it's running
         let frame2 = SKTexture(imageNamed: "dog-walking1")
@@ -68,6 +108,8 @@ class GameScene: SKScene {
             let ground = SKSpriteNode(texture: groundTexture)
             ground.zPosition = -10
             ground.position = CGPoint(x: (groundTexture.size().width/2.0 + (groundTexture.size().width*CGFloat(i))), y: groundTexture.size().height/2)
+            ground.physicsBody = SKPhysicsBody(texture: ground.texture!, size: ground.texture!.size())
+            ground.physicsBody?.isDynamic = false
             addChild(ground)
             
             let moveLeft = SKAction.moveBy(x: -groundTexture.size().width, y: 0, duration: 5)
@@ -88,6 +130,12 @@ class GameScene: SKScene {
         let bottomRock = SKSpriteNode(texture: rockTexture)
         bottomRock.zPosition = -20
         
+        topRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: rockTexture.size())
+        topRock.physicsBody?.isDynamic = false
+        
+        bottomRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: rockTexture.size())
+        bottomRock.physicsBody?.isDynamic = false
+        
         addChild(topRock)
         addChild(bottomRock)
         
@@ -106,6 +154,7 @@ class GameScene: SKScene {
         
         topRock.run(moveSequence)
         bottomRock.run(moveSequence)
+        
 
     }
     
@@ -119,6 +168,28 @@ class GameScene: SKScene {
         run(repeatForever)
     }
     
+    func createScore() {
+        scoreLabel = SKLabelNode(fontNamed: "Optima-ExtraBlack")
+        scoreLabel.fontSize = 24
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
+        scoreLabel.text = "SCORE: 0"
+        scoreLabel.fontColor = UIColor.orange
+        addChild(scoreLabel)
+    }
     
+    func updateScore(withCurrentTime currentTime: TimeInterval) {
+        let elapsedTime = currentTime - lastScoreUpdateTime
+        if elapsedTime > 1.0 {
+            score += 1
+            lastScoreUpdateTime = currentTime
+        }
+    }
+    
+    func restartGame() {
+        let scene = GameScene(fileNamed: "GameScene")!
+        let transition = SKTransition.moveIn(with: SKTransitionDirection.right, duration: 2)
+        self.view?.presentScene(scene, transition: transition)
+
+    }
   
 }
